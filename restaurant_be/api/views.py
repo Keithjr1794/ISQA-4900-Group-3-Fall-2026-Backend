@@ -33,7 +33,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     serializer_class = RestaurantSerializer
 
     permission_classes = [
-        IsAuthenticated,
+        IsAuthenticatedOrReadOnly,
         IsOwnerOrReadOnly,
     ]
 
