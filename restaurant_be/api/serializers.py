@@ -1,12 +1,18 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from .models import Category, Restaurant, Review, SavedRestaurant, UserProfile
+from django.db import transaction
 
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .models import Category, Restaurant, Review, SavedRestaurant
+from .models import (
+    Category,
+    Restaurant,
+    Review,
+    SavedRestaurant,
+    UserProfile,
+)
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -48,10 +54,12 @@ class SavedRestaurantSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(
-    max_length=100,
-    required=False,
-    allow_blank=True,
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        write_only=True,
     )
+
     email = serializers.EmailField(
         required=True,
         validators=[
@@ -114,15 +122,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         return attrs
 
-def create(self, validated_data):
-    validated_data.pop('password2')
-    display_name = validated_data.pop('display_name', '')
+    @transaction.atomic
+    def create(self, validated_data):
+        validated_data.pop('password2')
+        display_name = validated_data.pop('display_name', '')
 
-    user = User.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
 
-    UserProfile.objects.create(
-        user=user,
-        display_name=display_name,
-    )
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.display_name = display_name
+        profile.save()
 
-    return user
+        return user
