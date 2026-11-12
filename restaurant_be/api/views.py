@@ -1,3 +1,4 @@
+
 from django.contrib.auth.models import User
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -22,11 +23,19 @@ from .serializers import (
 )
 
 
+# -----------------------------
+# CATEGORY
+# -----------------------------
+
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+
+# -----------------------------
+# RESTAURANTS
+# -----------------------------
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.select_related('category').all()
@@ -41,12 +50,17 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         DjangoFilterBackend,
         filters.SearchFilter,
     ]
+
     filterset_fields = ['category']
     search_fields = ['name', 'city', 'state', 'description']
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+
+# -----------------------------
+# REVIEWS
+# -----------------------------
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.select_related(
@@ -65,11 +79,42 @@ class ReviewViewSet(viewsets.ModelViewSet):
     filterset_fields = ['restaurant']
 
     def perform_create(self, serializer):
+        restaurant = serializer.validated_data['restaurant']
+
+        if Review.objects.filter(
+            user=self.request.user,
+            restaurant=restaurant,
+        ).exists():
+            raise ValidationError({
+                'restaurant': (
+                    'You already reviewed this restaurant. '
+                    'Please edit your existing review.'
+                )
+            })
+
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
+        restaurant = serializer.validated_data.get(
+            'restaurant',
+            serializer.instance.restaurant,
+        )
+
+        duplicate = Review.objects.filter(
+            user=serializer.instance.user,
+            restaurant=restaurant,
+        ).exclude(
+            pk=serializer.instance.pk
+        ).exists()
+
+        if duplicate:
+            raise ValidationError({
+                'restaurant': 'You already reviewed this restaurant.'
+            })
+
         serializer.save()
-        
+
+# SAVED RESTAURANTS (MY PLACES)
 
 class SavedRestaurantViewSet(viewsets.ModelViewSet):
     serializer_class = SavedRestaurantSerializer
@@ -108,7 +153,9 @@ class SavedRestaurantViewSet(viewsets.ModelViewSet):
         duplicate = SavedRestaurant.objects.filter(
             user=self.request.user,
             restaurant=restaurant,
-        ).exclude(pk=serializer.instance.pk).exists()
+        ).exclude(
+            pk=serializer.instance.pk
+        ).exists()
 
         if duplicate:
             raise ValidationError({
@@ -116,6 +163,9 @@ class SavedRestaurantViewSet(viewsets.ModelViewSet):
             })
 
         serializer.save()
+
+
+# CURRENT LOGGED-IN USER
 
 
 @api_view(['GET'])
@@ -130,8 +180,31 @@ def current_user(request):
     })
 
 
+# USER REGISTRATION
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = RegisterSerializer
+
+# ADMIN DASHBOARD
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_dashboard(request):
+
+    if not request.user.is_staff:
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
+
+    return Response({
+        'total_restaurants': Restaurant.objects.count(),
+        'total_categories': Category.objects.count(),
+        'total_reviews': Review.objects.count(),
+        'total_users': User.objects.count(),
+    })

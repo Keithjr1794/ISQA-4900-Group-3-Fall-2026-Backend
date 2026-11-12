@@ -1,3 +1,4 @@
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
@@ -8,6 +9,7 @@ from .views import (
     SavedRestaurantViewSet,
     RegisterView,
     current_user,
+    admin_dashboard,
 )
 
 router = DefaultRouter()
@@ -31,6 +33,11 @@ urlpatterns = [
         'me/',
         current_user,
         name='current-user',
+    ),
+    path(
+        'admin/dashboard/',
+        admin_dashboard,
+        name='admin-dashboard',
     ),
     path('', include(router.urls)),
 ]
