@@ -152,6 +152,7 @@ def current_user(request):
     return Response({
         'id': request.user.id,
         'username': request.user.username,
+        'is_superuser': request.user.is_superuser,
     })
 
 
