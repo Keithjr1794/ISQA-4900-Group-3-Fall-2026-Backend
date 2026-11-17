@@ -1,3 +1,4 @@
+
 from django.contrib.auth.models import User
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -8,6 +9,7 @@ from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
+    IsAdminUser,
 )
 from rest_framework.response import Response
 
@@ -161,3 +163,15 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = RegisterSerializer
+
+
+# Admin Dashboard Statistics
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_dashboard(request):
+    return Response({
+        'total_restaurants': Restaurant.objects.count(),
+        'total_categories': Category.objects.count(),
+        'total_reviews': Review.objects.count(),
+        'total_users': User.objects.count(),
+    })
