@@ -177,6 +177,7 @@ def current_user(request):
         'id': request.user.id,
         'username': request.user.username,
         'display_name': profile.display_name if profile else '',
+        'is_superuser': request.user.is_superuser,
     })
 
 
