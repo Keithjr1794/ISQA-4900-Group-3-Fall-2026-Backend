@@ -261,3 +261,60 @@ def admin_reviews(request):
             {'detail': 'Review deleted successfully.'},
             status=200
         )
+
+# ADMIN USER MANAGEMENT
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_users(request):
+    if not request.user.is_staff:
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
+
+    users = User.objects.order_by('username').values(
+        'id',
+        'username',
+        'email',
+        'is_active',
+        'is_staff',
+        'is_superuser',
+    )
+
+    return Response(list(users))
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_user_status(request, user_id):
+    if not request.user.is_staff:
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
+
+    is_active = request.data.get('is_active')
+
+    if not isinstance(is_active, bool):
+        return Response(
+            {'is_active': 'Send true or false.'},
+            status=400
+        )
+
+    updated = User.objects.filter(
+        pk=user_id,
+        is_staff=False,
+        is_superuser=False,
+    ).update(is_active=is_active)
+
+    if not updated:
+        return Response(
+            {'detail': 'Regular account not found.'},
+            status=404
+        )
+
+    return Response({
+        'id': user_id,
+        'is_active': is_active,
+    })

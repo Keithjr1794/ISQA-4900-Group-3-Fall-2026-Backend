@@ -1,4 +1,3 @@
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
@@ -11,6 +10,8 @@ from .views import (
     current_user,
     admin_dashboard,
     admin_reviews,
+    admin_users,
+    admin_user_status,
 )
 
 router = DefaultRouter()
@@ -46,4 +47,22 @@ urlpatterns = [
         name='admin-reviews',
     ),
     path('', include(router.urls)),
+
+    path(
+        'admin/reviews/',
+        admin_reviews,
+        name='admin-reviews',
+    ),
+    path(
+        'admin/users/',
+        admin_users,
+        name='admin-users',
+    ),
+    path(
+        'admin/users/<int:user_id>/status/',
+        admin_user_status,
+        name='admin-user-status',
+    ),
+    path('', include(router.urls)),
+
 ]
