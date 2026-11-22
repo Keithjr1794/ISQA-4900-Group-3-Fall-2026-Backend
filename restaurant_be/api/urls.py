@@ -26,31 +26,11 @@ router.register(
 )
 
 urlpatterns = [
-    path(
-        'register/',
-        RegisterView.as_view(),
-        name='register',
-    ),
-    path(
-        'me/',
-        current_user,
-        name='current-user',
-    ),
-    path(
-        'admin/dashboard/',
-        admin_dashboard,
-        name='admin-dashboard',
-    ),
-    path(
-        'admin/reviews/',
-        admin_reviews,
-        name='admin-reviews',
-    ),
-    path(
-        'admin/users/',
-        admin_users,
-        name='admin-users',
-    ),
+    path('register/', RegisterView.as_view(), name='register'),
+    path('me/', current_user, name='current-user'),
+    path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
+    path('admin/reviews/', admin_reviews, name='admin-reviews'),
+    path('admin/users/', admin_users, name='admin-users'),
     path(
         'admin/users/<int:user_id>/status/',
         admin_user_status,
