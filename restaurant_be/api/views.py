@@ -1,42 +1,62 @@
+
 from django.contrib.auth.models import User
 from django_filters.rest_framework import DjangoFilterBackend
 
-from rest_framework import filters, generics, viewsets
+from rest_framework import viewsets, filters, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
+    IsAdminUser,
 )
 from rest_framework.response import Response
 
-from .models import Category, Restaurant, Review, SavedRestaurant
 from .permissions import IsOwnerOrReadOnly
+from .models import Category, Restaurant, Review, SavedRestaurant
 from .serializers import (
     CategorySerializer,
-    RegisterSerializer,
     RestaurantSerializer,
     ReviewSerializer,
     SavedRestaurantSerializer,
+    RegisterSerializer,
 )
 
 
-# CATEGORIES
+# -----------------------------
+# CATEGORY
+# -----------------------------
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+
+        return [IsAdminUser()]
 
 
+# -----------------------------
 # RESTAURANTS
+# -----------------------------
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.select_related('category').all()
     serializer_class = RestaurantSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+
+    permission_classes = [
+        IsAuthenticatedOrReadOnly,
+        IsOwnerOrReadOnly,
+    ]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+    ]
+
     filterset_fields = ['category']
     search_fields = ['name', 'city', 'state', 'description']
 
@@ -44,12 +64,23 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
 
 
+# -----------------------------
 # REVIEWS
+# -----------------------------
 
 class ReviewViewSet(viewsets.ModelViewSet):
-    queryset = Review.objects.select_related('user', 'restaurant').all()
+    queryset = Review.objects.select_related(
+        'user',
+        'restaurant',
+    ).all()
+
     serializer_class = ReviewSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
+    permission_classes = [
+        IsAuthenticatedOrReadOnly,
+        IsOwnerOrReadOnly,
+    ]
+
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['restaurant']
 
@@ -78,7 +109,9 @@ class ReviewViewSet(viewsets.ModelViewSet):
         duplicate = Review.objects.filter(
             user=serializer.instance.user,
             restaurant=restaurant,
-        ).exclude(pk=serializer.instance.pk).exists()
+        ).exclude(
+            pk=serializer.instance.pk
+        ).exists()
 
         if duplicate:
             raise ValidationError({
@@ -86,7 +119,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             })
 
         serializer.save()
-
 
 # SAVED RESTAURANTS (MY PLACES)
 
@@ -127,7 +159,9 @@ class SavedRestaurantViewSet(viewsets.ModelViewSet):
         duplicate = SavedRestaurant.objects.filter(
             user=self.request.user,
             restaurant=restaurant,
-        ).exclude(pk=serializer.instance.pk).exists()
+        ).exclude(
+            pk=serializer.instance.pk
+        ).exists()
 
         if duplicate:
             raise ValidationError({
@@ -139,6 +173,7 @@ class SavedRestaurantViewSet(viewsets.ModelViewSet):
 
 # CURRENT LOGGED-IN USER
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def current_user(request):
@@ -148,12 +183,13 @@ def current_user(request):
         'id': request.user.id,
         'username': request.user.username,
         'display_name': profile.display_name if profile else '',
-        'is_staff': request.user.is_staff,
         'is_superuser': request.user.is_superuser,
+        'is_staff': request.user.is_staff,
     })
 
 
 # USER REGISTRATION
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -161,14 +197,18 @@ class RegisterView(generics.CreateAPIView):
     authentication_classes = []
     serializer_class = RegisterSerializer
 
-
 # ADMIN DASHBOARD
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def admin_dashboard(request):
+
     if not request.user.is_staff:
-        return Response({'detail': 'Admin access required.'}, status=403)
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
 
     return Response({
         'total_restaurants': Restaurant.objects.count(),
@@ -178,13 +218,60 @@ def admin_dashboard(request):
     })
 
 
+# Admin Reviews Management
+
+@api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def admin_reviews(request):
+    if not request.user.is_staff:
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
+
+    if request.method == 'GET':
+        reviews = Review.objects.select_related(
+            'user',
+            'restaurant',
+        ).order_by('-created_at')
+
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(serializer.data)
+
+    if request.method == 'DELETE':
+        review_id = request.query_params.get('id')
+
+        if not review_id:
+            return Response(
+                {'detail': 'Review ID is required.'},
+                status=400
+            )
+
+        try:
+            review = Review.objects.get(pk=review_id)
+        except Review.DoesNotExist:
+            return Response(
+                {'detail': 'Review not found.'},
+                status=404
+            )
+
+        review.delete()
+
+        return Response(
+            {'detail': 'Review deleted successfully.'},
+            status=200
+        )
+
 # ADMIN USER MANAGEMENT
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def admin_users(request):
     if not request.user.is_staff:
-        return Response({'detail': 'Admin access required.'}, status=403)
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
 
     users = User.objects.order_by('username').values(
         'id',
@@ -194,6 +281,7 @@ def admin_users(request):
         'is_staff',
         'is_superuser',
     )
+
     return Response(list(users))
 
 
@@ -201,11 +289,18 @@ def admin_users(request):
 @permission_classes([IsAuthenticated])
 def admin_user_status(request, user_id):
     if not request.user.is_staff:
-        return Response({'detail': 'Admin access required.'}, status=403)
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
 
     is_active = request.data.get('is_active')
+
     if not isinstance(is_active, bool):
-        return Response({'is_active': 'Send true or false.'}, status=400)
+        return Response(
+            {'is_active': 'Send true or false.'},
+            status=400
+        )
 
     updated = User.objects.filter(
         pk=user_id,
@@ -214,6 +309,12 @@ def admin_user_status(request, user_id):
     ).update(is_active=is_active)
 
     if not updated:
-        return Response({'detail': 'Regular account not found.'}, status=404)
+        return Response(
+            {'detail': 'Regular account not found.'},
+            status=404
+        )
 
-    return Response({'id': user_id, 'is_active': is_active})
+    return Response({
+        'id': user_id,
+        'is_active': is_active,
+    })

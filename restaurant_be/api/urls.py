@@ -1,19 +1,21 @@
-from django.urls import include, path
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
     CategoryViewSet,
-    RegisterView,
     RestaurantViewSet,
     ReviewViewSet,
     SavedRestaurantViewSet,
-    admin_dashboard,
-    admin_user_status,
-    admin_users,
+    RegisterView,
     current_user,
+    admin_dashboard,
+    admin_reviews,
+    admin_users,
+    admin_user_status,
 )
 
 router = DefaultRouter()
+
 router.register(r'categories', CategoryViewSet)
 router.register(r'restaurants', RestaurantViewSet)
 router.register(r'reviews', ReviewViewSet)
@@ -27,6 +29,7 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('me/', current_user, name='current-user'),
     path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
+    path('admin/reviews/', admin_reviews, name='admin-reviews'),
     path('admin/users/', admin_users, name='admin-users'),
     path(
         'admin/users/<int:user_id>/status/',

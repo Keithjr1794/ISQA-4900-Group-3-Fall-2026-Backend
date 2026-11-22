@@ -27,9 +27,15 @@ class RestaurantSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_by']
 
 
+
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
         source='user.username',
+        read_only=True,
+    )
+
+    restaurant_name = serializers.CharField(
+        source='restaurant.name',
         read_only=True,
     )
 
@@ -114,15 +120,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         return attrs
 
-def create(self, validated_data):
-    validated_data.pop('password2')
-    display_name = validated_data.pop('display_name', '')
+    def create(self, validated_data):
+        validated_data.pop('password2', None)
+        display_name = validated_data.pop('display_name', '')
 
-    user = User.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
 
-    UserProfile.objects.create(
-        user=user,
-        display_name=display_name,
-    )
+        UserProfile.objects.create(
+            user=user,
+            display_name=display_name,
+        )
 
-    return user
+        return user
