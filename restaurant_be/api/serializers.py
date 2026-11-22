@@ -27,9 +27,15 @@ class RestaurantSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_by']
 
 
+
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
         source='user.username',
+        read_only=True,
+    )
+
+    restaurant_name = serializers.CharField(
+        source='restaurant.name',
         read_only=True,
     )
 

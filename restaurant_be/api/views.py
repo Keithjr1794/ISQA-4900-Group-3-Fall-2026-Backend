@@ -9,6 +9,7 @@ from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
+    IsAdminUser,
 )
 from rest_framework.response import Response
 
@@ -30,7 +31,12 @@ from .serializers import (
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+
+        return [IsAdminUser()]
 
 
 # -----------------------------
@@ -42,7 +48,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     serializer_class = RestaurantSerializer
 
     permission_classes = [
-        IsAuthenticated,
+        IsAuthenticatedOrReadOnly,
         IsOwnerOrReadOnly,
     ]
 
@@ -178,6 +184,7 @@ def current_user(request):
         'username': request.user.username,
         'display_name': profile.display_name if profile else '',
         'is_superuser': request.user.is_superuser,
+        'is_staff': request.user.is_staff,
     })
 
 
@@ -209,3 +216,48 @@ def admin_dashboard(request):
         'total_reviews': Review.objects.count(),
         'total_users': User.objects.count(),
     })
+
+
+# Admin Reviews Management
+
+@api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def admin_reviews(request):
+    if not request.user.is_staff:
+        return Response(
+            {'detail': 'Admin access required.'},
+            status=403
+        )
+
+    if request.method == 'GET':
+        reviews = Review.objects.select_related(
+            'user',
+            'restaurant',
+        ).order_by('-created_at')
+
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(serializer.data)
+
+    if request.method == 'DELETE':
+        review_id = request.query_params.get('id')
+
+        if not review_id:
+            return Response(
+                {'detail': 'Review ID is required.'},
+                status=400
+            )
+
+        try:
+            review = Review.objects.get(pk=review_id)
+        except Review.DoesNotExist:
+            return Response(
+                {'detail': 'Review not found.'},
+                status=404
+            )
+
+        review.delete()
+
+        return Response(
+            {'detail': 'Review deleted successfully.'},
+            status=200
+        )

@@ -10,6 +10,7 @@ from .views import (
     RegisterView,
     current_user,
     admin_dashboard,
+    admin_reviews,
 )
 
 router = DefaultRouter()
@@ -38,6 +39,11 @@ urlpatterns = [
         'admin/dashboard/',
         admin_dashboard,
         name='admin-dashboard',
+    ),
+    path(
+        'admin/reviews/',
+        admin_reviews,
+        name='admin-reviews',
     ),
     path('', include(router.urls)),
 ]
