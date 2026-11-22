@@ -46,13 +46,6 @@ urlpatterns = [
         admin_reviews,
         name='admin-reviews',
     ),
-    path('', include(router.urls)),
-
-    path(
-        'admin/reviews/',
-        admin_reviews,
-        name='admin-reviews',
-    ),
     path(
         'admin/users/',
         admin_users,
@@ -64,5 +57,4 @@ urlpatterns = [
         name='admin-user-status',
     ),
     path('', include(router.urls)),
-
 ]
